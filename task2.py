@@ -130,16 +130,51 @@ class Parser:
         else:
             self.error()
 
-    def term(self):
-        """Парсер для 'term' правил граматики. У нашому випадку - це цілі числа."""
+    def factor(self):
         if self.current_token.type in \
             (TokenType.LPAREN):              # (
             self.eat(TokenType.LPAREN)
-            return  self.expr()
-        token = self.current_token
-        self.eat(TokenType.INTEGER)
-        return Num(token)
+            return  self.expr()        
+        if self.current_token.type in \
+            (TokenType.INTEGER):              # num
+            token = self.current_token
+            self.eat(TokenType.INTEGER)
+            return Num(token)
+        if self.current_token.type in \
+            (TokenType.EOF):              # num
+            return None
 
+        self.error()
+
+    
+    # term(self):
+    # node = self.factor()
+    # ...
+    # return node    
+    def term(self):
+        """Парсер для 'term' правил граматики. У нашому випадку - це цілі числа."""
+        node = self.factor()
+        while self.current_token.type in \
+           (TokenType.MUL, TokenType.DIV,       TokenType.RPAREN):
+            token = self.current_token
+            if self.current_token.type == TokenType.DIV:
+                self.eat(TokenType.DIV)
+                node = BinOp(left=node, op=token, right=self.factor())
+                        
+            elif self.current_token.type == TokenType.MUL:
+                self.eat(TokenType.MUL)
+                node = BinOp(left=node, op=token, right=self.factor())
+
+            elif self.current_token.type == TokenType.RPAREN:
+                self.eat(TokenType.RPAREN)
+                return node
+        return node   
+
+
+    # expr(self):
+    #     node = self.term()
+    #     ...
+    #     return node   
     def expr(self):
         """Парсер для арифметичних виразів."""
         node=None
@@ -147,19 +182,14 @@ class Parser:
             (TokenType.MUL, TokenType.DIV,TokenType.RPAREN): # */)
             self.error()
         if self.current_token.type in \
-            (TokenType.LPAREN):              # (
-            self.eat(TokenType.LPAREN)
-            node = self.expr()
-        if self.current_token.type in \
             (TokenType.PLUS, TokenType.MINUS): # +-
             node = self.lexer.get_0_token()
-        if self.current_token.type in \
-            (TokenType.INTEGER):               # integer
+        else:
             node=self.term()    
 
         while self.current_token.type in\
               (TokenType.PLUS, TokenType.MINUS,\
-               TokenType.MUL, TokenType.DIV,       TokenType.RPAREN):
+                    TokenType.RPAREN):
             token = self.current_token
             if token.type == TokenType.PLUS:
                 self.eat(TokenType.PLUS)
@@ -167,26 +197,8 @@ class Parser:
             elif token.type == TokenType.MINUS:
                 self.eat(TokenType.MINUS)
                 node = BinOp(left=node, op=token, right=self.term())
-            elif token.type == TokenType.DIV:
-                self.eat(TokenType.DIV)
-                if (type(node) is not BinOp)or(node.paren):
-                    node = BinOp(left=node, op=token, right=self.term())
-                else:
-                    node1=BinOp(left=node.right, op=token, right=self.term())
-                    node.right=node1
-                        
-            elif token.type == TokenType.MUL:
-                self.eat(TokenType.MUL)
-                if (type(node) is not BinOp)or(node.paren):
-                    node = BinOp(left=node, op=token, right=self.term())
-                else:
-                    node1=BinOp(left=node.right, op=token, right=self.term())
-                    node.right=node1
-
             elif token.type == TokenType.RPAREN:
                 self.eat(TokenType.RPAREN)
-                if type(node) is BinOp:
-                    node.paren=True
                 return node
             
         return node
